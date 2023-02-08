@@ -1,0 +1,10 @@
+[build]
+target = "avr-specs/avr-atmega328p.json"
+#target = "avr-specs/avr-atmega32u4.json"
+
+[target.'cfg(target_arch = "avr")']
+runner = "ravedude uno --open-console --baudrate 115200"
+#runner = "ravedude leonardo --open-console --baudrate 115200"
+
+[unstable]
+build-std = ["core"]
