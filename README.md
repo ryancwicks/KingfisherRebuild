@@ -5,6 +5,8 @@ The goal of this project is to rebuild a Kingfisher boat from Clearpath Robotics
 ## Project Layout
 
  - ControlBoard: reverse engineered board design (very incomplete, but most of the signals were traced out.)
+ - kingfisher-uc: Rust microcontroller code for controlling the motors and lights and recieving radio input.
+ - kf_data_types: Rust data types library used to allow different parts of the project to communicate.
 
 
 ## Links:

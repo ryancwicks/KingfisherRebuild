@@ -7,14 +7,16 @@ use serde::{Serialize, Deserialize};
 /// State and Error are sent up from the uC, RequestState and SetOutput are sent down.
 #[derive(Serialize, Deserialize, Debug)]
 pub enum MicroMessages {
-    State (MicroState),
+    State (State),
     ControllerState (ControllerState),
     RequestState,
+    RequestControllerState,
     SetOutput(Vec<Output>),
     Error(Vec<u8>),
 }
 
 /// Enum containing all the controllable output, including analog ones (individual motor control)
+#[derive(Serialize, Deserialize, Debug)]
 pub enum Output {
     StarboardLight(bool),
     PortLight(bool),
@@ -24,15 +26,17 @@ pub enum Output {
 }
 
 /// Structure containing the current state, excluding the controller state.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct State {
     starboard_light: bool,
     port_lights: bool,
-    fan: bool
+    fan: bool,
     starboard_throttle: i8,
     port_throttle: i8
 }
 
 /// Structure containing the raw controller stick position state.
+#[derive(Serialize, Deserialize, Debug)]
 pub struct ControllerState {
     overridden: bool,
     throttle: u8,
