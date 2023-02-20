@@ -1,5 +1,5 @@
 [package]
-name = "kingfisher-uc"
+name = "kingfisher_uc"
 version = "0.1.0"
 authors = ["Ryan Wicks <ryancwicks@gmail.com>"]
 edition = "2021"

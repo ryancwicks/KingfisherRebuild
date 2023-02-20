@@ -1,5 +1,5 @@
 [package]
-name = "kf_data_types"
+name = "kingfisher_data_types"
 version = "0.1.0"
 edition = "2021"
 

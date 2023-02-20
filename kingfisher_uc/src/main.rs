@@ -35,6 +35,7 @@ fn main() -> ! {
     //digital outputs / control lights
     let mut port_nav_light = pins.d11.into_output();
     let mut _stb_nav_lights = pins.d3.into_output();
+    let mut _debug_led = pins.d7.into_output();
     
     //PWM outputs
     let mut _std_ctrl = pins.d5.into_output();
