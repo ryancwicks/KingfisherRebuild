@@ -33,13 +33,15 @@ fn main() -> ! {
     dp.EXINT.eimsk.write(|w| w.bits(0b100));
 
     //digital outputs / control lights
-    let mut port_nav_light = pins.d11.into_output();
+    let mut _port_nav_light = pins.d11.into_output();
     let mut _stb_nav_lights = pins.d3.into_output();
-    let mut _debug_led = pins.d7.into_output();
+    let mut debug_led = pins.d7.into_output();
     
-    //PWM outputs
-    let mut _std_ctrl = pins.d5.into_output();
-    let mut _port_ctl = pins.d13.into_output();
+    // outputs
+    let mut _std_pwr_relay = pins.d5.into_output();
+    let mut _stb_ctrl = pins.d10.into_output();
+    let mut _port_pwr_relay = pins.d13.into_output();
+    let mut _port_ctrl = pins.d8.into_output();
     let mut _fan = pins.led_tx.into_output();
 
     unsafe { avr_device::interrupt::enable() };
@@ -52,7 +54,7 @@ fn main() -> ! {
     usb.init(&dp.PLL);
 
     loop {
-        port_nav_light.toggle();
+        debug_led.toggle();
         arduino_hal::delay_ms(1000);
         ufmt::uwriteln!(usb, "Hello, World!").unwrap();
     }
