@@ -1,18 +1,36 @@
 use serde::{Serialize, Deserialize};
 
+#[cfg(not(feature = "std"))]
+use heapless::Vec;
+
 /// These structs are use to communicate over a serial connection with the ocntrol microcontroller. They are then rebroadcast on their own topics through DDS.
 
-/// The main enum for packing individual control or response messages.
-/// This us used for dispatching the messages both bottom and top side.
-/// State and Error are sent up from the uC, RequestState and SetOutput are sent down.
+/// The main enum for packing individual control messages. (to microcontroller)
+/// This is read by the bottomside to conrol vehicle state
 #[derive(Serialize, Deserialize, Debug)]
-pub enum MicroMessages {
-    State (State),
-    ControllerState (ControllerState),
+pub enum MicroControlMessages {
     RequestState,
     RequestControllerState,
+
+    #[cfg(not(feature = "std"))]
+    SetOutput(Vec<Output, 7>),
+
+    #[cfg(feature = "std")]
     SetOutput(Vec<Output>),
-    Error(Vec<u8>),
+}
+
+/// The main enum for packing individual status messages (from microcontroller).
+/// These are sent to the device to change the state.
+#[derive(Serialize, Deserialize, Debug)]
+pub enum MicroStatusMessages {
+    State (State),
+    ControllerState (ControllerState),
+
+    #[cfg(not(feature = "std"))]
+    Debug(Vec<u8, 250>),
+
+    #[cfg(feature = "std")]
+    Debug(Vec<u8>),
 }
 
 /// Enum containing all the controllable output, including analog ones (individual motor control)
@@ -20,7 +38,8 @@ pub enum MicroMessages {
 pub enum Output {
     StarboardLight(bool),
     PortLight(bool),
-    Fan(bool),
+    StarboardPower(bool),
+    PortPower(bool),
     StarboardThrottle(i8),
     PortThrottle(i8),
 }
@@ -28,18 +47,19 @@ pub enum Output {
 /// Structure containing the current state, excluding the controller state.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct State {
-    starboard_light: bool,
-    port_lights: bool,
-    fan: bool,
-    starboard_throttle: i8,
-    port_throttle: i8
+    pub starboard_light: bool,
+    pub port_lights: bool,
+    pub starboard_power: bool,
+    pub port_power: bool,
+    pub starboard_throttle: u8,
+    pub port_throttle: u8
 }
 
 /// Structure containing the raw controller stick position state.
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ControllerState {
-    overridden: bool,
-    throttle: u8,
-    turn: u8,
-    switch: u8,
+    pub overridden: bool,
+    pub throttle: u16,
+    pub turn: u16,
+    pub switch: u16,
 }

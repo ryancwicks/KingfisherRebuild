@@ -6,7 +6,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 
 [[bin]]
-name = "kingfisher-uc"
+name = "kingfisher_uc"
 
 test = false
 bench = false
@@ -17,6 +17,10 @@ ufmt = "0.1.0"
 nb = "0.1.2"
 embedded-hal = "0.2.3"
 atmega32u4-usb-serial = { git = "https://github.com/ryancwicks/atmega32u4-usb-serial", branch = "update_usb_serial_version" }
+serde = {version = "1.0.152", default-features = false}
+postcard = "1.0.4"
+heapless = {version="0.7.16", features=["ufmt-impl"]}
+kingfisher_data_types = { path="../kingfisher_data_types", default-features = false}
 
 [dependencies.avr-device]
 version = "0.5.0"
