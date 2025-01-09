@@ -1,3 +1,3 @@
 [workspace]
-members = ["microcontroller", "state_monitor"]
-
+members = ["dashboard/src-tauri", "data_logger", "gps","microcontroller", "state_monitor", "kingfisher_data_types"]
+resolver="2"

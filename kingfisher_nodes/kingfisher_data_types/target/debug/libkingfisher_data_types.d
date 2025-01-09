@@ -1,0 +1,1 @@
+/home/rwicks/git/KingfisherRebuild/kingfisher_data_types/target/debug/libkingfisher_data_types.rlib: /home/rwicks/git/KingfisherRebuild/kingfisher_data_types/src/lib.rs /home/rwicks/git/KingfisherRebuild/kingfisher_data_types/src/microcontroller_types.rs

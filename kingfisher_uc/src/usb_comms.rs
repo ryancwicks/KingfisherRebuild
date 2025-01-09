@@ -88,7 +88,7 @@ impl UsbComms {
 
     #[allow(unused)]
     /// Write the contents of the vector over the USB serial port.
-    fn write_string(&mut self, data: &str) {
+    pub fn write_string(&mut self, data: &str) {
         ufmt::uwrite!(self.usb, "{}", data).unwrap();
     } 
 

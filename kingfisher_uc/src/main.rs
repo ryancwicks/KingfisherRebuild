@@ -184,7 +184,8 @@ fn main() -> ! {
         //update the system state.
         if millis() > next_led_switch_time {
             debug_led.toggle();
-            next_led_switch_time = next_led_switch_time.wrapping_add(1000);
+            port_pwr_relay.toggle();
+            next_led_switch_time = next_led_switch_time.wrapping_add(500);
         }
     }
 }

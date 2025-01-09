@@ -1,0 +1,13 @@
+[package]
+name = "data_logger"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dust_dds = "0.11.0"
+env_logger = "0.11.6"
+log = "0.4.22"
+kingfisher_data_types = { path = "../kingfisher_data_types"}
+config = "0.15.4"
+clap = { version = "4.5.23", features = ["derive"] }
+tokio = {version = "1.42.0", features = ["full"]}
