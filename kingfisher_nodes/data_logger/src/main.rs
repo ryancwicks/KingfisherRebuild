@@ -3,8 +3,9 @@ use config::Config;
 use clap::Parser;
 use kingfisher_data_types::dds_topics::{
     SystemStatusCpu, SYSTEM_STATUS_CPU_TOPIC, SYSTEM_STATUS_DISK_TOPIC, SYSTEM_STATUS_MEMORY_TOPIC, 
-    SYSTEM_STATUS_NETWORK_TOPIC, GPS_TOPIC, SystemStatusMemory,
-    SystemStatusDisk, SystemStatusNetwork, GpsData
+    SYSTEM_STATUS_NETWORK_TOPIC, GPS_TOPIC, IMU_TOPIC, SystemStatusMemory,
+    SystemStatusDisk, SystemStatusNetwork, GpsData,
+    ImuData
 };
 
 use dust_dds::{
@@ -124,6 +125,10 @@ async fn main() {
     let topic_cpu = participant.create_topic::<SystemStatusCpu>(SYSTEM_STATUS_CPU_TOPIC, "SystemStatusCpu", QosKind::Default, None, NO_STATUS)
     .await
     .unwrap();
+
+    let topic_imu = participant.create_topic::<ImuData>(IMU_TOPIC, "ImuData", QosKind::Default, None, NO_STATUS)
+    .await
+    .unwrap();
     
     //GPS topics
     let topic_gps = participant.create_topic::<GpsData>(GPS_TOPIC, "GpsData", QosKind::Default, None, NO_STATUS).await.unwrap();
@@ -137,6 +142,7 @@ async fn main() {
     let reader_disk = subscriber.create_datareader::<SystemStatusDisk>(&topic_disk, QosKind::Default, None, NO_STATUS).await.unwrap();
     let reader_network = subscriber.create_datareader::<SystemStatusNetwork>(&topic_network, QosKind::Default, None, NO_STATUS).await.unwrap();
     let reader_cpu = subscriber.create_datareader::<SystemStatusCpu>(&topic_cpu, QosKind::Default, None, NO_STATUS).await.unwrap();
+    let reader_imu = subscriber.create_datareader::<ImuData>(&topic_imu, QosKind::Default, None, NO_STATUS).await.unwrap();
     let reader_gps = subscriber.create_datareader::<GpsData>(&topic_gps, QosKind::Default, None, NO_STATUS).await.unwrap();
     
     tokio::spawn( async move {
@@ -229,6 +235,29 @@ async fn main() {
         }
         
     }
+    });
+
+    tokio::spawn( async move {
+        loop {
+            let data = match reader_imu.take(25, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE).await {
+                Ok(val) => val,
+                Err(e) => match e {
+                    DdsError::NoData => {
+                        tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; 
+                        Vec::new()
+                    },
+                    _ => {
+                        log::error!("Unexpected error: {:?}", e);
+                        Vec::new()
+                    }
+                }
+            };
+            
+            for sample in data {
+                log::info!("{:?}", sample.data().unwrap());
+            }
+            
+        }
     });
     
     tokio::spawn( async move {

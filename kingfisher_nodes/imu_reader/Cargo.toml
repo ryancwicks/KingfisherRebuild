@@ -1,0 +1,21 @@
+[package]
+name = "imu_reader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.26", features = ["derive"] }
+config = "0.15.5"
+log = "0.4.22"
+postcard = { version = "1.1.1", features = ["alloc"] }
+pretty_env_logger = "0.5.0"
+serialport = "4.6.1"
+tokio = { version = "1.43.0", features = ["full"] }
+tokio-serial = "5.4.5"
+tokio-util = { version = "0.7.13", features = ["codec"] }
+kingfisher_data_types = { path = "../kingfisher_data_types"}
+futures = "0.3.31"
+bytes = "1.9.0"
+dust_dds = "0.11.0"
+tokio-serde = "0.9.0"
+tokio-serde-postcard = "0.1.0"

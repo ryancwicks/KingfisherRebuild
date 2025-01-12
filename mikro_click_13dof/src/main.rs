@@ -1,9 +1,9 @@
 #![no_std]
 #![no_main]
 
-use defmt::{info, unwrap, error};
+use defmt::{info, error};
 use embassy_executor::Spawner;
-use embassy_stm32::gpio::{Level, Output, Speed, Input, Pull};
+use embassy_stm32::gpio::{Level, Output, Speed};
 use embassy_time::Timer;
 use embassy_futures::{join::join, select::{select, Either}};
 use embassy_stm32::time::Hertz;
@@ -17,19 +17,17 @@ use embassy_sync::{
     blocking_mutex::raw::ThreadModeRawMutex,
     channel::{Channel, Sender, Receiver},
 };
-use core::fmt::Write;
-use heapless::String;
+use postcard::to_vec;
 use {defmt_rtt as _, panic_probe as _};
 
 mod click_driver;
-use click_driver::click_driver::ClickDriver;
+use click_driver::click_driver::{ClickDriver, run_click_driver};
 
-enum DataEvents {
-    SerialEcho([u8; 64], u8), //(data and length)
-    ButtonChangeEvent(u16),
-}
+mod imu_types;
 
-static CHANNEL: Channel<ThreadModeRawMutex, DataEvents, 64> = Channel::new();
+use imu_types::ImuMessages;
+
+static CHANNEL: Channel<ThreadModeRawMutex, ImuMessages, 64> = Channel::new();
 
 bind_interrupts!(struct Irqs {
     OTG_FS => usb::InterruptHandler<peripherals::USB_OTG_FS>;
@@ -62,10 +60,8 @@ async fn main(spawner: Spawner) {
         config.rcc.mux.clk48sel = mux::Clk48sel::PLL1_Q;
     }
     let p = embassy_stm32::init(config);
-    //let p = embassy_stm32::init(Config::default());
     
     let mut led = Output::new(p.PC13, Level::High, Speed::Low);
-    let button_boot0 = Input::new(p.PA0, Pull::Up);
 
     //Create the i2c 
     let i2c = I2c::new(
@@ -78,58 +74,6 @@ async fn main(spawner: Spawner) {
         Hertz(400_000),
         Default::default(),
     );
-
-    let mut click_driver = ClickDriver::new(i2c);
-
-    match click_driver.power_on_magnetometer().await {
-        Ok(_) => (),
-        Err(e) => error!("Failed to power on Magnetometer: {:?}", e)
-    };
-    match click_driver.check_environmental_exists().await {
-        Ok(val) => {
-            if val {
-                info!("Environmental sensor detected.");
-            } else {
-                error!("Environmental sensor not detected.");
-            }
-        },
-        Err(e) => error!("Failed to communicate with i2c bus {:?}", e)
-    };
-    match click_driver.check_accelerometer_exists().await {
-        Ok(val) => {
-            if val {
-                info!("Accelerometer detected.");
-            } else {
-                error!("Accelerometer not detected.");
-            }
-        },
-        Err(e) => error!("Failed to communicate with i2c bus {:?}", e)
-    };
-    match click_driver.check_gyroscope_exists().await {
-        Ok(val) => {
-            if val {
-                info!("Gyroscope detected.");
-            } else {
-                error!("Gyroscope not detected.");
-            }
-        },
-        Err(e) => error!("Failed to communicate with i2c bus {:?}", e)
-    };
-    match click_driver.check_magnetometer_exists().await {
-        Ok(val) => {
-            if val {
-                info!("Magnetometer detected.");
-            } else {
-                error!("Magnetometer not detected.");
-            }
-        },
-        Err(e) => error!("Failed to communicate with i2c bus {:?}", e)
-    };
-
-    //Setup the sensors
-    click_driver.setup_environmental().await.unwrap_or_else(|e| {error!("Env setup to communicate with i2c bus {:?}",e)});
-    click_driver.trigger_environmental().await.unwrap_or_else(|e| {error!("Env trigger to communicate with i2c bus {:?}",e)});
-    
     
     // Create the driver, from the HAL.
     let mut ep_out_buffer = [0u8; 256];
@@ -173,7 +117,9 @@ async fn main(spawner: Spawner) {
     let mut usb = builder.build();
     
     let sender_from_system = CHANNEL.sender();
-    unwrap!(spawner.spawn(button_handler(button_boot0, sender_from_system)));
+    let click_driver = ClickDriver::new(i2c);
+    spawner.spawn(run_click_driver(click_driver, sender_from_system)).unwrap();
+    //unwrap!(spawner.spawn(button_handler(button_boot0, sender_from_system)));
     
     // Run the USB device.
     let usb_fut = usb.run();
@@ -222,37 +168,29 @@ impl From<EndpointError> for Disconnected {
 async fn serial_handle<'d, T: Instance + 'd>(
     usb_sender: &mut cdc_acm::Sender<'d, Driver<'d, T>>,
     usb_receiver: &mut cdc_acm::Receiver<'d, Driver<'d, T>>, 
-    event_channel_receiver: Receiver<'static, ThreadModeRawMutex, DataEvents, 64>,
-    event_channel_sender: Sender<'static, ThreadModeRawMutex, DataEvents, 64>) -> Result<(), Disconnected> {
+    event_channel_receiver: Receiver<'static, ThreadModeRawMutex, ImuMessages, 64>,
+    _event_channel_sender: Sender<'static, ThreadModeRawMutex, ImuMessages, 64>) -> Result<(), Disconnected> {
     let mut buf = [0; 64];
     
     loop {
         match select(
             async {
-                let n = usb_receiver.read_packet(&mut buf).await?;
+                let _n = usb_receiver.read_packet(&mut buf).await?;
                 let mut data = [0; 64];
                 for (i, val) in buf.iter().enumerate() {
                     data[i] = *val;
                 }
                 info!("data: {:x}", data);
-                event_channel_sender.send(DataEvents::SerialEcho(data, n as u8)).await;
                 Ok(())
             } ,
             async {
                 let val = event_channel_receiver.receive().await;
-                
-                match val {
-                    DataEvents::SerialEcho(data, len) => {
-                        info!("Echoing data: {:x}", data);
-                        usb_sender.write_packet(&data[..len as usize]).await?;
-                    },
-                    DataEvents::ButtonChangeEvent(val) => {
-                        info! ("Button change event: {}", val);
-                        let mut data = String::<32>::new(); // 32 byte string buffer
-                        let _ = write!(data, "event: {}\n", val);
-                        usb_sender.write_packet(data.as_bytes()).await?;
-                    }
-                }
+                let data = to_vec::<ImuMessages, 50>(&val).unwrap();
+                info!("data: {:?}", data.as_slice());
+                match usb_sender.write_packet(&data).await {
+                    Ok(_) => (),
+                    Err(e) => error!("USB write error: {:?}", e)
+                };
                 Ok(())
             }
         ).await {
@@ -277,18 +215,18 @@ async fn serial_handle<'d, T: Instance + 'd>(
     }
 }
 
-#[embassy_executor::task]
-async fn button_handler(button: Input<'static>, event_channel: Sender<'static, ThreadModeRawMutex, DataEvents, 64>) {
-    let mut last_state = button.get_level();
-    let mut count: u16 = 0;
-    loop {
-        let current_state = button.get_level();
-        if current_state != last_state {
-            last_state = current_state;
-            count = count.wrapping_add(1);
-            info!("State Change {}", count);
-            event_channel.send(DataEvents::ButtonChangeEvent(count)).await;    
-        }
-        Timer::after_millis(50).await;
-    }
-}
+// #[embassy_executor::task]
+// async fn button_handler(button: Input<'static>, event_channel: Sender<'static, ThreadModeRawMutex, DataEvents, 64>) {
+//     let mut last_state = button.get_level();
+//     let mut count: u16 = 0;
+//     loop {
+//         let current_state = button.get_level();
+//         if current_state != last_state {
+//             last_state = current_state;
+//             count = count.wrapping_add(1);
+//             info!("State Change {}", count);
+//             event_channel.send(DataEvents::ButtonChangeEvent(count)).await;    
+//         }
+//         Timer::after_millis(50).await;
+//     }
+// }

@@ -1,8 +1,6 @@
 //! This module contains the hard coded names of various DDS topics use by different systems.
 
-use dust_dds::{
-    topic_definition::type_support::DdsType,
-};
+use dust_dds::topic_definition::type_support::DdsType;
 use serde::Serialize;
 
 pub const MICROCONTROLLER_STATUS_TOPIC: &str = "mcu_status";
@@ -34,6 +32,17 @@ pub struct GpsData {
     pub direction: f32,
     pub fix: GpsFix,
     pub good_satellites: u8
+}
+
+///IMU Types
+#[derive(DdsType, Debug, Clone, Serialize)]
+pub struct ImuData {
+    #[dust_dds(key)]
+    pub id: String,
+    pub time: f64,
+    pub accelerometer: Vec<f32>,
+    pub gyroscope: Vec<f32>,
+    pub magnetometer: Vec<f32>,
 }
 
 ///Types for System Status

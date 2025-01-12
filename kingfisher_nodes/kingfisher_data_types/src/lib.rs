@@ -1,6 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod microcontroller_types;
+pub mod imu_types;
 
 #[cfg(feature = "std")]
 pub mod dds_topics;

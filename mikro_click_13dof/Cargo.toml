@@ -22,7 +22,8 @@ futures-util = { version="0.3.31", default-features=false }
 usbd-hid = "0.8.2"
 critical-section = "1.2.0"
 heapless = "0.8.0"
-
+serde = { version = "1.0", default-features = false, features = ["derive"]}
+postcard = "1.1.1"
 
 [patch.crates-io]
 embassy-time = { git = "https://github.com/embassy-rs/embassy", rev = "9a238e6ad8aedf29b5f5af7308c7f5f50061242c" }
@@ -34,4 +35,11 @@ embassy-sync = { git = "https://github.com/embassy-rs/embassy", rev = "9a238e6ad
 
 
 [profile.release]
-debug = 2
+debug = 0
+opt-level = "s"
+
+[profile.dev]
+codegen-units = 1
+#debug = 0
+lto = true
+opt-level = "s"

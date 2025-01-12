@@ -5,9 +5,9 @@ use dust_dds::{
 };
 use kingfisher_data_types::dds_topics::{
     GPS_TOPIC, SYSTEM_STATUS_CPU_TOPIC, SYSTEM_STATUS_DISK_TOPIC, 
-    SYSTEM_STATUS_MEMORY_TOPIC, SYSTEM_STATUS_NETWORK_TOPIC,
+    SYSTEM_STATUS_MEMORY_TOPIC, SYSTEM_STATUS_NETWORK_TOPIC, IMU_TOPIC,
     SystemStatusMemory, SystemStatusCpu, SystemStatusNetwork, 
-    SystemStatusDisk, GpsData
+    SystemStatusDisk, GpsData, ImuData
 };
 
 use rerun;
@@ -48,6 +48,9 @@ pub fn setup_dds_topics() {
         let topic_gps = participant
         .create_topic::<GpsData>(GPS_TOPIC, "GpsData", QosKind::Default, None, NO_STATUS)
         .await.unwrap();
+        let topic_imu = participant
+        .create_topic::<GpsData>(IMU_TOPIC, "ImuData", QosKind::Default, None, NO_STATUS)
+        .await.unwrap();
 
         let subscriber = participant
         .create_subscriber(QosKind::Default, None, NO_STATUS)
@@ -59,6 +62,7 @@ pub fn setup_dds_topics() {
         let reader_network = subscriber.create_datareader::<SystemStatusNetwork>(&topic_network, QosKind::Default, None, NO_STATUS).await.unwrap();
         let reader_disk = subscriber.create_datareader::<SystemStatusDisk>(&topic_disk, QosKind::Default, None, NO_STATUS).await.unwrap();
         let reader_gps = subscriber.create_datareader::<GpsData>(&topic_gps, QosKind::Default, None, NO_STATUS).await.unwrap();
+        let reader_imu = subscriber.create_datareader::<ImuData>(&topic_imu, QosKind::Default, None, NO_STATUS).await.unwrap();
         
         let rrd_mem = rrd.clone();
         tokio::spawn (async move {
@@ -76,8 +80,12 @@ pub fn setup_dds_topics() {
         tokio::spawn (async move {
              handle_disk_topic(reader_disk, rrd_disk).await;
         });
+        let rrd_gps = rrd.clone();
         tokio::spawn (async move {
-            handle_gps_topic(reader_gps, rrd.clone()).await;
+            handle_gps_topic(reader_gps, rrd_gps).await;
+        });
+        tokio::spawn (async move {
+            handle_imu_topic(reader_imu, rrd.clone()).await;
         });
     });
 }
@@ -308,6 +316,51 @@ async fn handle_gps_topic (reader: DataReaderAsync<GpsData>, rrd: rerun::Recordi
                                     sample_data.latitude, sample_data.longitude, sample_data.altitude, sample_data.velocity, 
                                     sample_data.direction, sample_data.fix, sample_data.good_satellites))).unwrap();
             rrd.log("gps/position", &rerun::GeoPoints::from_lat_lon([(sample_data.latitude, sample_data.longitude)])).unwrap();
+        }
+    }
+}
+
+// Function to handle reading topics from dds and sending them along via mpsc channels
+async fn handle_imu_topic (reader: DataReaderAsync<ImuData>, rrd: rerun::RecordingStream) {
+    loop {
+        let data = match reader.take(25, ANY_SAMPLE_STATE, ANY_VIEW_STATE, ANY_INSTANCE_STATE).await {
+            Ok(val) => val,
+            Err(e) => match e {
+                DdsError::NoData => {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; 
+                    Vec::new()
+                },
+                _ => {
+                    log::error!("Unexpected error: {:?}", e);
+                    Vec::new()
+                }
+                
+            }
+        };
+        
+        for sample in data {
+            //log::info!("{:?}", sample);
+            let sample_data =  match sample.data() {
+                Ok(val) => val,
+                Err(e) => {
+                    log::error!("Failed unpack DDS system imu sample: {:?}", e);
+                    continue;
+                }
+            };
+            
+            rrd.set_time_seconds("system_time", sample_data.time);
+
+            rrd.log("imu_accelerometer/x", &rerun::Scalar::new(sample_data.accelerometer[0] as f64)).unwrap();
+            rrd.log("imu_accelerometer/y", &rerun::Scalar::new(sample_data.accelerometer[1] as f64)).unwrap();
+            rrd.log("imu_accelerometer/z", &rerun::Scalar::new(sample_data.accelerometer[2] as f64)).unwrap();
+
+            rrd.log("imu_gyroscope/x", &rerun::Scalar::new(sample_data.gyroscope[0] as f64)).unwrap();
+            rrd.log("imu_gyroscope/y", &rerun::Scalar::new(sample_data.gyroscope[1] as f64)).unwrap();
+            rrd.log("imu_gyroscope/x", &rerun::Scalar::new(sample_data.gyroscope[2] as f64)).unwrap();
+            
+            rrd.log("imu_magnetometer/x", &rerun::Scalar::new(sample_data.magnetometer[0] as f64)).unwrap();
+            rrd.log("imu_magnetometer/y", &rerun::Scalar::new(sample_data.magnetometer[1] as f64)).unwrap();
+            rrd.log("imu_magnetometer/z", &rerun::Scalar::new(sample_data.magnetometer[2] as f64)).unwrap();
         }
     }
 }
