@@ -356,7 +356,7 @@ async fn handle_imu_topic (reader: DataReaderAsync<ImuData>, rrd: rerun::Recordi
 
             rrd.log("imu_gyroscope/x", &rerun::Scalar::new(sample_data.gyroscope[0] as f64)).unwrap();
             rrd.log("imu_gyroscope/y", &rerun::Scalar::new(sample_data.gyroscope[1] as f64)).unwrap();
-            rrd.log("imu_gyroscope/x", &rerun::Scalar::new(sample_data.gyroscope[2] as f64)).unwrap();
+            rrd.log("imu_gyroscope/z", &rerun::Scalar::new(sample_data.gyroscope[2] as f64)).unwrap();
             
             rrd.log("imu_magnetometer/x", &rerun::Scalar::new(sample_data.magnetometer[0] as f64)).unwrap();
             rrd.log("imu_magnetometer/y", &rerun::Scalar::new(sample_data.magnetometer[1] as f64)).unwrap();
